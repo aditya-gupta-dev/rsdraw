@@ -1,4 +1,4 @@
-# rsdraw
+# rsdraw (Under Development)
 
 Screen annotation tool exclusively for Linux. Built for Wayland (Hyprland / Sway / wlroots) using Rust + GTK4 + `wlr-layer-shell` + Cairo.
 
