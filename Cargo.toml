@@ -1,0 +1,19 @@
+[package]
+name = "rsdraw"
+version = "0.1.0"
+edition = "2021"
+description = "Draw over your screen on Wayland (Hyprland)"
+
+[dependencies]
+gtk4 = { version = "0.11", features = ["v4_12"] }
+gdk4 = { version = "0.11", features = ["v4_12"] }
+glib = "0.22"
+cairo-rs = "0.22"
+gtk4-layer-shell = "0.8"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+
+[profile.release]
+opt-level = 2
+strip = true
+lto = "thin"
