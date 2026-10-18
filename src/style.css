@@ -1,0 +1,20 @@
+/* Clear only the annotation shell; help and picker panels retain their backgrounds.
+   This provider runs above user-theme CSS so window backgrounds cannot cover the desktop. */
+window.rsdraw-overlay,
+window.rsdraw-overlay.background,
+window.rsdraw-overlay decoration,
+window.rsdraw-overlay overlay.rsdraw-canvas-root,
+window.rsdraw-overlay drawingarea.rsdraw-canvas {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+.panel { background: #ffffff; color: #1e1e1e; border: 1px solid #e9e9ef; border-radius: 10px; padding: 16px; box-shadow: 0 2px 12px alpha(#000000, 0.14); font-family: sans-serif; font-size: 12px; }
+.caption { font-size: 12px; color: #5c5c68; margin-top: 3px; }
+.shortcut { color: #706b9b; font-family: monospace; }
+.drawing-editor, .drawing-editor text { background: transparent; border: none; padding: 0; color: #1e1e1e; caret-color: #6965db; }
+.drawing-editor { outline: 1px dashed #6965db; }
+
+.panel button { background: #f5f5f5; border: 1px solid #dedede; border-radius: 4px; font-size: 26px; padding: 3px 8px; }
+.panel entry.error { outline: 1px solid #e03131; }

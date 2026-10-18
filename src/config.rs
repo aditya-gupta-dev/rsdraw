@@ -1,253 +1,182 @@
+use crate::canvas::{parse_color, FillStyle, StrokeStyle, StrokeVariability, Theme};
+use crate::keys::{Action, Bindings, KeySpec};
 use serde::Deserialize;
-use std::fs;
-use std::path::PathBuf;
+use std::{collections::BTreeMap, fs, path::PathBuf};
 
-pub fn config_dir() -> PathBuf {
-    let base = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        format!("{}/.config", home)
-    });
-    PathBuf::from(base).join("rsdraw")
-}
+pub const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
 
 pub fn config_path() -> PathBuf {
-    config_dir().join("config.toml")
-}
-
-#[derive(Deserialize, Clone)]
-#[serde(default)]
-pub struct Config {
-    pub drawing: DrawingConfig,
-    pub keys: KeysConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            drawing: DrawingConfig::default(),
-            keys: KeysConfig::default(),
-        }
+    if let Some(path) = std::env::var_os("RSDRAW_CONFIG") {
+        return path.into();
     }
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_else(|| ".".into())).join(".config")
+        });
+    base.join("rsdraw/config.toml")
 }
 
 #[derive(Deserialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct DrawingConfig {
     pub default_color: String,
     pub default_width: f64,
     pub font_family: String,
+    pub font_size: f64,
+    pub roughness: f64,
+    pub fill_color: String,
+    pub fill_style: FillStyle,
+    pub stroke_style: StrokeStyle,
+    pub tool_lock: bool,
+    pub theme: Theme,
+    pub rounded: bool,
+    pub stroke_variability: StrokeVariability,
 }
-
 impl Default for DrawingConfig {
     fn default() -> Self {
         Self {
-            default_color: "red".to_string(),
-            default_width: 3.0,
-            font_family: "sans-serif".to_string(),
+            default_color: "#1e1e1e".into(),
+            default_width: 2.0,
+            font_family: "Excalifont".into(),
+            font_size: 20.0,
+            roughness: 1.0,
+            fill_color: "transparent".into(),
+            fill_style: FillStyle::Solid,
+            stroke_style: StrokeStyle::Solid,
+            tool_lock: true,
+            theme: Theme::Dark,
+            rounded: true,
+            stroke_variability: StrokeVariability::Constant,
         }
     }
 }
 
 #[derive(Deserialize, Clone)]
-#[serde(default)]
-pub struct KeysConfig {
-    pub quit: String,
-    pub undo: String,
-    pub help: String,
-
-    pub color_red: String,
-    pub color_green: String,
-    pub color_blue: String,
-    pub color_yellow: String,
-    pub color_white: String,
-    pub color_orange: String,
-
-    pub brush_increase: String,
-    pub brush_decrease: String,
-
-    pub tool_freehand: String,
-    pub tool_rectangle: String,
-    pub tool_circle: String,
-    pub tool_triangle: String,
-    pub tool_arrow: String,
-    pub tool_text: String,
-    pub picker: String,
+#[serde(deny_unknown_fields)]
+pub struct Config {
+    #[serde(default)]
+    pub drawing: DrawingConfig,
+    #[serde(default)]
+    pub keys: BTreeMap<Action, KeySpec>,
 }
-
-impl Default for KeysConfig {
+impl Default for Config {
     fn default() -> Self {
-        Self {
-            quit: "Ctrl+x".into(),
-            undo: "Ctrl+z".into(),
-            help: "F1".into(),
-            picker: "p".into(),
-            color_red: "1".into(),
-            color_green: "2".into(),
-            color_blue: "3".into(),
-            color_yellow: "4".into(),
-            color_white: "5".into(),
-            color_orange: "6".into(),
-            brush_increase: "equal".into(),
-            brush_decrease: "minus".into(),
-            tool_freehand: "f".into(),
-            tool_rectangle: "r".into(),
-            tool_circle: "c".into(),
-            tool_triangle: "t".into(),
-            tool_arrow: "a".into(),
-            tool_text: "x".into(),
-        }
+        toml::from_str(DEFAULT_CONFIG).expect("bundled config must be valid")
     }
 }
-const DEFAULT_CONFIG: &str = r#"# rsdraw configuration (Linux)
-# Keybinding format: [Modifier+]Key
-# Modifiers: Ctrl, Shift, Alt, Super
-# Keys: a-z, 0-9, F1-F12, Escape, space, equal, minus, plus, period, comma ...
-
-[drawing]
-default_color = "red"
-default_width = 3.0
-font_family   = "sans-serif" # e.g. "sans-serif", "monospace", "JetBrains Mono", "Fira Code"
-
-[keys]
-# Global
-quit           = "Ctrl+x"
-undo           = "Ctrl+z"
-help           = "F1"
-picker         = "p"
-
-# Colors (names or hex: #RGB, #RGBA, #RRGGBB, #RRGGBBAA)
-color_red      = "1"
-color_green    = "2"
-color_blue     = "3"
-color_yellow   = "4"
-color_white    = "5"
-color_orange   = "6"
-
-# Brush size
-brush_increase = "equal"
-brush_decrease = "minus"
-
-# Tools
-tool_freehand  = "f"
-tool_rectangle = "r"
-tool_circle    = "c"
-tool_triangle  = "t"
-tool_arrow     = "a"
-tool_text      = "x"
-"#;
-
-pub fn load() -> Config {
-    let path = config_path();
-
-    if !path.exists() {
-        let _ = fs::create_dir_all(config_dir());
-        let _ = fs::write(&path, DEFAULT_CONFIG);
-        eprintln!("created default config at {}", path.display());
-    }
-
-    match fs::read_to_string(&path) {
-        Ok(content) => match toml::from_str(&content) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("config parse error: {}. using defaults.", e);
-                Config::default()
+impl Config {
+    pub fn parse(content: &str) -> Result<Self, String> {
+        let mut cfg: Self = toml::from_str(content).map_err(|e| format!("{e}"))?;
+        // Explicit user bindings take precedence over inherited defaults. This
+        // also lets pre-Excalidraw configs keep their numeric color shortcuts.
+        let explicit = cfg.keys.clone();
+        Bindings::compile(&explicit)?;
+        let explicit_bindings: Vec<_> = explicit
+            .iter()
+            .flat_map(|(&action, spec)| spec.names().into_iter().map(move |name| (action, name)))
+            .map(|(action, name)| {
+                crate::keys::Binding::parse(name).map(|binding| (action, binding))
+            })
+            .collect::<Result<_, _>>()?;
+        let mut keys = Self::default().keys;
+        for (action, spec) in &mut keys {
+            if !explicit.contains_key(action) {
+                *spec = KeySpec::Many(
+                    spec.names()
+                        .into_iter()
+                        .filter(|name| {
+                            crate::keys::Binding::parse(name).is_ok_and(|b| {
+                                !explicit_bindings.iter().any(|(other, binding)| {
+                                    *binding == b
+                                        && !matches!(
+                                            (*action, *other),
+                                            (Action::FinishText, Action::Cancel)
+                                                | (Action::Cancel, Action::FinishText)
+                                        )
+                                })
+                            })
+                        })
+                        .map(str::to_owned)
+                        .collect(),
+                );
             }
-        },
-        Err(e) => {
-            eprintln!("config read error: {}. using defaults.", e);
-            Config::default()
         }
+        keys.append(&mut cfg.keys);
+        cfg.keys = keys;
+        let d = &cfg.drawing;
+        for (name, value, min, max) in [
+            ("default_width", d.default_width, 0.5, 50.0),
+            ("font_size", d.font_size, 6.0, 256.0),
+            ("roughness", d.roughness, 0.0, 3.0),
+        ] {
+            if !value.is_finite() || !(min..=max).contains(&value) {
+                return Err(format!("drawing.{name} must be between {min} and {max}"));
+            }
+        }
+        parse_color(&d.default_color).ok_or("invalid drawing.default_color")?;
+        parse_color(&d.fill_color).ok_or("invalid drawing.fill_color")?;
+        if d.font_family.trim().is_empty() {
+            return Err("font_family cannot be empty".into());
+        }
+        Bindings::compile(&cfg.keys)?;
+        Ok(cfg)
+    }
+    pub fn help_lines(&self) -> Vec<(String, String)> {
+        self.keys
+            .iter()
+            .filter(|(_, s)| !s.names().is_empty())
+            .map(|(&a, s)| (s.display(), a.label().into()))
+            .collect()
     }
 }
 
-pub fn print_help(config: &Config) {
-    let k = &config.keys;
-    println!("rsdraw v0.1.0 — Screen annotation tool for Linux (Wayland / Hyprland)\n");
-    println!("Keybindings ({})\n", config_path().display());
-
-    let sections: &[(&str, &[(&str, &str)])] = &[
-        (
-            "General",
-            &[
-                (&k.quit, "Quit rsdraw"),
-                (&k.undo, "Undo last element"),
-                (&k.help, "Toggle help panel"),
-                (&k.picker, "Toggle color palette / picker"),
-            ],
-        ),
-        (
-            "Tools",
-            &[
-                (&k.tool_freehand, "Freehand pen"),
-                (&k.tool_rectangle, "Rectangle"),
-                (&k.tool_circle, "Circle / ellipse"),
-                (&k.tool_triangle, "Triangle"),
-                (&k.tool_arrow, "Arrow"),
-                (&k.tool_text, "Text typing"),
-            ],
-        ),
-        (
-            "Colors",
-            &[
-                (&k.color_red, "Red"),
-                (&k.color_green, "Green"),
-                (&k.color_blue, "Blue"),
-                (&k.color_yellow, "Yellow"),
-                (&k.color_white, "White"),
-                (&k.color_orange, "Orange"),
-            ],
-        ),
-        (
-            "Brush",
-            &[
-                (&k.brush_increase, "Increase width / text size"),
-                (&k.brush_decrease, "Decrease width / text size"),
-            ],
-        ),
-    ];
-
-    for (title, entries) in sections {
-        println!("  {}:", title);
-        for (key, desc) in *entries {
-            println!("    {:<16} {}", key, desc);
+pub fn load(path: &std::path::Path) -> Result<Config, String> {
+    if !path.exists() {
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
         }
-        println!();
+        fs::write(path, DEFAULT_CONFIG).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("created config at {}", path.display());
     }
-
-    println!("IPC commands:\n");
-    println!("  rsdraw toggle         Toggle draw / passthrough");
-    println!("  rsdraw clear          Clear canvas");
-    println!("  rsdraw undo           Undo last element");
-    println!("  rsdraw quit           Quit");
-    println!("  rsdraw picker         Toggle color palette / picker");
-    println!("  rsdraw tool <name>    Switch tool (freehand/rect/circle/tri/arrow/text)");
-    println!("  rsdraw font <name>    Set font family (e.g. monospace, 'JetBrains Mono')");
-    println!("  rsdraw color <name>   Set color (name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA)");
-    println!("  rsdraw width <n>      Set brush width (1-50)");
-    println!("  rsdraw help           Show this help");
-    println!("\nConfig: {}", config_path().display());
+    Config::parse(&fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?)
 }
 
-pub fn help_lines(config: &Config) -> Vec<(String, String)> {
-    let k = &config.keys;
-    vec![
-        (k.quit.clone(), "Quit".into()),
-        (k.undo.clone(), "Undo".into()),
-        (k.help.clone(), "Toggle help".into()),
-        (k.picker.clone(), "Color picker".into()),
-        (k.tool_freehand.clone(), "Freehand".into()),
-        (k.tool_rectangle.clone(), "Rectangle".into()),
-        (k.tool_circle.clone(), "Circle".into()),
-        (k.tool_triangle.clone(), "Triangle".into()),
-        (k.tool_arrow.clone(), "Arrow".into()),
-        (k.tool_text.clone(), "Text".into()),
-        (k.color_red.clone(), "Red".into()),
-        (k.color_green.clone(), "Green".into()),
-        (k.color_blue.clone(), "Blue".into()),
-        (k.color_yellow.clone(), "Yellow".into()),
-        (k.color_white.clone(), "White".into()),
-        (k.color_orange.clone(), "Orange".into()),
-        (k.brush_increase.clone(), "Size +".into()),
-        (k.brush_decrease.clone(), "Size −".into()),
-    ]
+pub fn print_help(cfg: &Config, path: &std::path::Path) {
+    println!("rsdraw — hand-drawn screen annotations for Wayland\n\nUsage: rsdraw [--config PATH] [COMMAND]\n\nKeybindings ({}):", path.display());
+    for (key, label) in cfg.help_lines() {
+        println!("  {key:<35} {label}");
+    }
+    println!("\nMouse: Shift constrains shapes / adds selection; Alt draws from center / duplicates.\nSpace+drag or middle drag pans; Ctrl+wheel zooms. Double-click edits text.\nText: Enter inserts a new line; Escape or Ctrl+Enter finishes.\n\nCommands:\n  toggle, clear, undo, redo, quit, picker\n  tool <selection|hand|rectangle|diamond|ellipse|triangle|arrow|line|freehand|text|eraser>\n  color <name|#hex>, fill <name|#hex|transparent>, width <0.5..50>\n  font <family>, font-size <6..256>, roughness <0..3>\n  fill-style <hachure|cross_hatch|solid>, stroke-style <solid|dashed|dotted>\n  theme <light|dark>, roundness <round|sharp>\n  stroke-variability <constant|variable>\n  help, config-path, check-config\n\nSee README.md and docs/CONTROLS.md for the full interaction guide.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn defaults_compile_and_overrides_merge() {
+        Config::parse(DEFAULT_CONFIG).unwrap();
+        let c = Config::parse("[keys]\ntool_freehand = ['b', '9']\nquit = []").unwrap();
+        assert_eq!(c.keys[&Action::ToolFreehand].display(), "b / 9");
+        assert!(c.keys[&Action::Quit].names().is_empty());
+        assert_eq!(c.keys[&Action::ToolText].display(), "t / 8");
+    }
+    #[test]
+    fn explicit_keys_override_inherited_shortcuts() {
+        let c = Config::parse("[keys]\ncolor_red='1'\nquit='Ctrl+x'").unwrap();
+        assert_eq!(c.keys[&Action::ToolSelection].display(), "v");
+        assert!(c.keys[&Action::Cut].names().is_empty());
+        assert_eq!(c.keys[&Action::Quit].display(), "Ctrl+x");
+    }
+    #[test]
+    fn invalid_config_is_reported() {
+        for s in [
+            "[drawing]\nroughness=nan",
+            "[drawing]\ndefault_color='oops'",
+            "[keys]\nundo='r'\ntool_rectangle='r'",
+            "[keys]\nundoo='z'",
+        ] {
+            assert!(Config::parse(s).is_err(), "accepted {s}");
+        }
+    }
 }

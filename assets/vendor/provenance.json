@@ -1,0 +1,30 @@
+[
+  {
+    "package": "roughjs",
+    "version": "4.6.4",
+    "source": "https://registry.npmjs.org/roughjs/-/roughjs-4.6.4.tgz",
+    "file": "rough-4.6.4.cjs",
+    "sha256": "ad9f2c50932c19cc148edaf14b81bcfdbb9eef8e53fabfe17b670df9dbf0e064"
+  },
+  {
+    "package": "perfect-freehand",
+    "version": "1.2.0",
+    "source": "https://registry.npmjs.org/perfect-freehand/-/perfect-freehand-1.2.0.tgz",
+    "file": "perfect-freehand-1.2.0.cjs",
+    "sha256": "34f7a6ee87cf16446c5608179a4f94022126b50216066f8dd57bb16138eee710"
+  },
+  {
+    "package": "@excalidraw/laser-pointer",
+    "version": "reference 4c37956ba5f04ec342a9d9d5891a38f22c5b7b4e",
+    "source": "excalidraw/packages/laser-pointer/src",
+    "file": "excalidraw-laser-pointer.js",
+    "builder": "esbuild 0.25.12 --bundle --format=iife --global-name=ExcalidrawLaserPointer --target=es2020",
+    "sha256": "952b0ea676f3a8923bda7594b3bb548820d1218b80c935ebd9d3cfa83249e486",
+    "source_sha256": {
+      "packages/laser-pointer/src/index.ts": "20f6cc8476985397286f9625dadfffa7ad2bff9c6f30c4d8e96e47e7aacd1684",
+      "packages/laser-pointer/src/math.ts": "64f13fde32ba2efbb55248b55c879328c2c1cfc6aaf0fe8073d22a0d013e599c",
+      "packages/laser-pointer/src/simplify.ts": "29e024b70039cfa77f9bf977e1763676c7844a46e9c5189f1ffd081c40fa1aef",
+      "packages/laser-pointer/src/state.ts": "3ddc3ece741312fab695b79f56418766d7754c5867aad7b76673873f71c34aa2"
+    }
+  }
+]

@@ -1,0 +1,76 @@
+# rsdraw — Excalidraw-style screen annotations
+# Copied to $XDG_CONFIG_HOME/rsdraw/config.toml on first run.
+# Override with RSDRAW_CONFIG or: rsdraw --config /path/to/config.toml
+# Restart the daemon after editing. Omitted actions inherit defaults.
+# Bindings accept a string or a list of alternatives; [] disables an action.
+# Modifiers: Ctrl, Shift, Alt, Super. Key names use GDK names or characters.
+
+[drawing]
+default_color = "#1e1e1e"
+default_width = 2.0
+font_family = "Excalifont"
+font_size = 20.0
+roughness = 1.0             # 0 = clean, 1 = hand-drawn, 2 = very rough
+fill_color = "transparent"
+fill_style = "solid"      # hachure, cross_hatch, solid
+stroke_style = "solid"      # solid, dashed, dotted
+tool_lock = true            # Keep the chosen drawing tool; Q toggles this
+theme = "dark"             # Excalidraw colors for dark desktops; "light" for light ones
+rounded = true             # Excalidraw's default round corners
+stroke_variability = "constant" # Reference default; "variable" uses perfect-freehand
+
+[keys]
+tool_selection = ["v", "1"]
+tool_hand = "h"
+tool_rectangle = ["r", "2"]
+tool_diamond = ["d", "3"]
+tool_circle = ["o", "4"]
+tool_arrow = ["a", "5"]
+tool_line = ["l", "6"]
+tool_freehand = ["p", "7"]
+tool_text = ["t", "8"]
+tool_eraser = ["e", "0"]
+tool_triangle = "Shift+t"   # rsdraw extension
+lock_tool = "q"
+undo = "Ctrl+z"
+redo = ["Ctrl+Shift+z", "Ctrl+y"]
+delete = ["Delete", "BackSpace"]
+clear = "Ctrl+Delete"
+select_all = "Ctrl+a"
+duplicate = "Ctrl+d"
+copy = "Ctrl+c"
+cut = "Ctrl+x"
+paste = "Ctrl+v"
+edit_text = "Return"
+finish_text = ["Escape", "Ctrl+Return"]
+cancel = "Escape"
+help = ["?", "F1"]
+picker = "s"              # stroke palette, like Excalidraw
+fill_picker = "g"
+color_red = "Alt+1"       # rsdraw extensions; numbers select tools
+color_green = "Alt+2"
+color_blue = "Alt+3"
+color_yellow = "Alt+4"
+color_white = "Alt+5"
+color_orange = "Alt+6"
+brush_increase = "]"
+brush_decrease = "["
+font_increase = ["Ctrl+Shift+greater", "Ctrl+Shift+period"]
+font_decrease = ["Ctrl+Shift+less", "Ctrl+Shift+comma"]
+zoom_in = ["Ctrl+equal", "Ctrl+plus"]
+zoom_out = "Ctrl+minus"
+zoom_reset = "Ctrl+0"
+zoom_fit = "Shift+1"
+nudge_left = "Left"
+nudge_right = "Right"
+nudge_up = "Up"
+nudge_down = "Down"
+nudge_left_fast = "Shift+Left"
+nudge_right_fast = "Shift+Right"
+nudge_up_fast = "Shift+Up"
+nudge_down_fast = "Shift+Down"
+bring_forward = "Ctrl+]"
+send_backward = "Ctrl+["
+bring_front = "Ctrl+Shift+]"
+send_back = "Ctrl+Shift+["
+quit = "Ctrl+q"            # rsdraw extension; Ctrl+X cuts selection

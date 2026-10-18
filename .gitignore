@@ -1,2 +1,5 @@
 /target
 .cargo
+
+# Local, read-only upstream reference
+/excalidraw/
