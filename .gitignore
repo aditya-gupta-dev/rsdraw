@@ -1,5 +1,6 @@
 /target
-.cargo
+.cargo/*
+!/.cargo/config.toml
 
 # Local, read-only upstream reference
 /excalidraw/
