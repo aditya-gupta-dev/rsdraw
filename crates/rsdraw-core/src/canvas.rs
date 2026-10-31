@@ -135,7 +135,29 @@ pub struct Element {
     pub geometry: Geometry,
     pub style: Style,
     pub seed: u64,
-    cache: RefCell<Option<(serde_json::Value, Rc<RenderData>)>>,
+    cache: RefCell<Option<Rc<CachedPaths>>>,
+}
+#[derive(Debug)]
+struct CachedPaths {
+    geometry: Geometry,
+    style: Style,
+    seed: u64,
+    paths: Rc<RenderData>,
+}
+impl CachedPaths {
+    fn matches(&self, element: &Element) -> bool {
+        let a = &self.style;
+        let b = &element.style;
+        self.seed == element.seed
+            && self.geometry == element.geometry
+            && a.width == b.width
+            && a.roughness == b.roughness
+            && (a.fill.3 > 0.) == (b.fill.3 > 0.)
+            && a.fill_style == b.fill_style
+            && a.stroke_style == b.stroke_style
+            && a.rounded == b.rounded
+            && a.stroke_variability == b.stroke_variability
+    }
 }
 impl PartialEq for Element {
     fn eq(&self, other: &Self) -> bool {
@@ -164,13 +186,12 @@ impl Element {
             Geometry::Text { pos, text } => {
                 let surface = cairo::ImageSurface::create(cairo::Format::ARgb32, 1, 1).unwrap();
                 let cr = Context::new(&surface).unwrap();
-                let layout = text_layout(&cr, text, &self.style);
-                let (w, h) = layout.pixel_size();
+                let (w, h) = crate::text::measure(&cr, text, &self.style);
                 Bounds {
                     x: pos.0,
                     y: pos.1,
-                    w: w as f64,
-                    h: h as f64,
+                    w,
+                    h,
                 }
             }
         }
@@ -217,8 +238,8 @@ impl Element {
         match &self.geometry {
             Geometry::Text { .. } => true,
             Geometry::Stroke(_) => {
-                let (origin, request) = self.render_request();
-                if let Ok(paths) = self.paths(&request) {
+                let origin = self.render_origin();
+                if let Ok(paths) = self.paths() {
                     let outline: Vec<Point> = paths
                         .outline
                         .iter()
@@ -267,8 +288,7 @@ impl Element {
             }
         }
     }
-    pub fn render_request(&self) -> (Point, serde_json::Value) {
-        use serde_json::json;
+    pub fn render_request(&self) -> (Point, rendering::Request) {
         let s = &self.style;
         let (origin, tool, width, height, end, points) = match &self.geometry {
             Geometry::Shape { tool, start, end } => {
@@ -312,20 +332,73 @@ impl Element {
         let rounded = s.rounded && matches!(tool, "rectangle" | "diamond" | "line" | "arrow");
         (
             origin,
-            json!({"tool":tool,"width":width,"height":height,"end":end,"points":points,
-            "seed":(self.seed & 0x7fffffff).max(1),"strokeWidth":s.width,"roughness":s.roughness,
-            "filled":s.fill.3>0.,"fillStyle":match s.fill_style {FillStyle::Hachure=>"hachure",FillStyle::CrossHatch=>"cross-hatch",FillStyle::Solid=>"solid"},
-            "strokeStyle":s.stroke_style,"rounded":rounded,"variability":s.stroke_variability}),
+            rendering::Request {
+                tool: tool.into(),
+                width,
+                height,
+                end: [end.0, end.1],
+                points,
+                seed: (self.seed & 0x7fffffff).max(1) as u32,
+                stroke_width: s.width,
+                roughness: s.roughness,
+                filled: s.fill.3 > 0.,
+                fill_style: match s.fill_style {
+                    FillStyle::Hachure => "hachure",
+                    FillStyle::CrossHatch => "cross-hatch",
+                    FillStyle::Solid => "solid",
+                }
+                .into(),
+                stroke_style: match s.stroke_style {
+                    StrokeStyle::Solid => "solid",
+                    StrokeStyle::Dashed => "dashed",
+                    StrokeStyle::Dotted => "dotted",
+                }
+                .into(),
+                rounded,
+                variability: match s.stroke_variability {
+                    StrokeVariability::Constant => "constant",
+                    StrokeVariability::Variable => "variable",
+                }
+                .into(),
+            },
         )
     }
-    fn paths(&self, request: &serde_json::Value) -> Result<Rc<RenderData>, String> {
-        if let Some((key, paths)) = &*self.cache.borrow() {
-            if key == request {
-                return Ok(paths.clone());
+    fn render_origin(&self) -> Point {
+        match &self.geometry {
+            Geometry::Stroke(points) => points.first().copied().unwrap_or((0., 0.)),
+            Geometry::Shape { tool, start, end } => {
+                if matches!(tool, Tool::Arrow | Tool::Line) {
+                    *start
+                } else {
+                    (start.0.min(end.0), start.1.min(end.1))
+                }
+            }
+            Geometry::Text { pos, .. } => *pos,
+        }
+    }
+    fn paths(&self) -> Result<Rc<RenderData>, String> {
+        if let Some(cache) = &*self.cache.borrow() {
+            if cache.matches(self) {
+                return Ok(cache.paths.clone());
             }
         }
-        let paths = Rc::new(rendering::generate(request)?);
-        *self.cache.borrow_mut() = Some((request.clone(), paths.clone()));
+        let data = if let Geometry::Stroke(points) = &self.geometry {
+            rendering::freehand(
+                points,
+                self.style.width,
+                self.style.stroke_variability == StrokeVariability::Variable,
+                self.seed,
+            )?
+        } else {
+            rendering::generate_request(&self.render_request().1)?
+        };
+        let paths = Rc::new(data);
+        *self.cache.borrow_mut() = Some(Rc::new(CachedPaths {
+            geometry: self.geometry.clone(),
+            style: self.style.clone(),
+            seed: self.seed,
+            paths: paths.clone(),
+        }));
         Ok(paths)
     }
     pub fn draw(&self, cr: &Context) {
@@ -335,20 +408,10 @@ impl Element {
         cr.set_line_join(cairo::LineJoin::Round);
         if let Geometry::Text { pos, text } = &self.geometry {
             source(cr, display_color(s.color, s.theme));
-            let layout = text_layout(cr, text, s);
-            let baseline = if s.font == "Excalifont" {
-                s.font_size * 0.881
-            } else {
-                layout.baseline() as f64 / gtk4::pango::SCALE as f64
-            };
-            cr.move_to(
-                pos.0,
-                pos.1 + baseline - layout.baseline() as f64 / gtk4::pango::SCALE as f64,
-            );
-            pangocairo::functions::show_layout(cr, &layout);
+            crate::text::draw(cr, *pos, text, s);
         } else {
-            let (origin, request) = self.render_request();
-            match self.paths(&request) {
+            let origin = self.render_origin();
+            match self.paths() {
                 Ok(paths) => {
                     cr.translate(origin.0, origin.1);
                     for drawable in &paths.drawables {
@@ -412,20 +475,6 @@ impl Element {
     }
 }
 
-pub fn text_layout(cr: &Context, text: &str, style: &Style) -> gtk4::pango::Layout {
-    let layout = pangocairo::functions::create_layout(cr);
-    let mut font = gtk4::pango::FontDescription::from_string(&style.font);
-    font.set_absolute_size(style.font_size * gtk4::pango::SCALE as f64);
-    font.set_weight(gtk4::pango::Weight::Normal);
-    layout.set_font_description(Some(&font));
-    layout.set_text(text);
-    let attrs = gtk4::pango::AttrList::new();
-    attrs.insert(gtk4::pango::AttrInt::new_line_height_absolute(
-        (style.font_size * 1.25 * gtk4::pango::SCALE as f64).round() as i32,
-    ));
-    layout.set_attributes(Some(&attrs));
-    layout
-}
 pub fn source(cr: &Context, c: Color) {
     cr.set_source_rgba(c.0, c.1, c.2, c.3);
 }
@@ -603,7 +652,7 @@ pub fn parse_color(name: &str) -> Option<Color> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     pub fn style() -> Style {
         Style {
@@ -623,7 +672,7 @@ mod tests {
     #[test]
     fn dark_colors_match_reference_and_preserve_alpha() {
         let fixtures: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/excalidraw.json")).unwrap();
+            serde_json::from_str(include_str!("../../../tests/fixtures/excalidraw.json")).unwrap();
         for fixture in fixtures["colors"].as_array().unwrap() {
             let rgb = &fixture["rgb"];
             let input = (
@@ -713,6 +762,27 @@ mod tests {
         let (a, b) = constrained_shape(Tool::Rectangle, (100., 100.), (70., 50.), true, true);
         assert_eq!(a, (150., 150.));
         assert_eq!(b, (50., 50.));
+    }
+    #[test]
+    fn cached_geometry_is_shared_and_ink_changes_do_not_regenerate_it() {
+        let mut element = Element::new(
+            Geometry::Stroke(vec![(0., 0.), (20., 20.), (30., 10.)]),
+            style(),
+        );
+        let first = element.paths().unwrap();
+        let copy = element.clone();
+        assert!(Rc::ptr_eq(&first, &copy.paths().unwrap()));
+        element.style.color = parse_color("blue").unwrap();
+        element.style.theme = Theme::Dark;
+        assert!(Rc::ptr_eq(&first, &element.paths().unwrap()));
+        if let Geometry::Stroke(points) = &mut element.geometry {
+            points.push((50., 20.));
+        }
+        assert!(!Rc::ptr_eq(&first, &element.paths().unwrap()));
+        assert!(
+            Rc::ptr_eq(&first, &copy.paths().unwrap()),
+            "editing a clone cannot invalidate the original"
+        );
     }
     #[test]
     fn render_is_deterministic_and_not_empty() {

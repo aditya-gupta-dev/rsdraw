@@ -101,7 +101,10 @@ impl Ui {
                 let natural_height =
                     (metrics.ascent() + metrics.descent()) as f64 / gtk4::pango::SCALE as f64;
                 tag.set_line_height(
-                    (e.style.font_size * scene.zoom * 1.25 / natural_height.max(1.)) as f32,
+                    (e.style.font_size
+                        * scene.zoom
+                        * rsdraw_core::text::metrics(&e.style.font).line_height
+                        / natural_height.max(1.)) as f32,
                 );
                 tag.set_pixels_below_lines(0);
                 buffer.apply_tag(&tag, &buffer.start_iter(), &buffer.end_iter());
@@ -378,10 +381,6 @@ impl BackingCache {
 }
 
 pub fn run(config: Config) {
-    if let Err(error) = crate::rendering::initialize() {
-        eprintln!("renderer initialization failed: {error}");
-        std::process::exit(2);
-    }
     if let Err(e) = crate::fonts::register() {
         eprintln!("Excalifont unavailable: {e}");
     }
@@ -668,7 +667,9 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
                 mods.contains(gdk::ModifierType::SHIFT_MASK),
                 mods.contains(gdk::ModifierType::ALT_MASK),
             );
-            ui.refresh();
+            // Pointer motion only changes canvas geometry. Let GTK coalesce
+            // redraws instead of restyling widgets/replacing the cursor per event.
+            ui.canvas.queue_draw();
         });
     }
     {

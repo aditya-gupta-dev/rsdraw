@@ -10,31 +10,45 @@ unsafe extern "C" {
 const FONTS: &[(&str, &[u8])] = &[
     (
         "Excalifont-Regular-349fac6ca4700ffec595a7150a0d1e1d.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-349fac6ca4700ffec595a7150a0d1e1d.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-349fac6ca4700ffec595a7150a0d1e1d.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-3f2c5db56cc93c5a6873b1361d730c16.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-3f2c5db56cc93c5a6873b1361d730c16.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-3f2c5db56cc93c5a6873b1361d730c16.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-41b173a47b57366892116a575a43e2b6.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-41b173a47b57366892116a575a43e2b6.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-41b173a47b57366892116a575a43e2b6.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-623ccf21b21ef6b3a0d87738f77eb071.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-623ccf21b21ef6b3a0d87738f77eb071.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-623ccf21b21ef6b3a0d87738f77eb071.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-b9dcf9d2e50a1eaf42fc664b50a3fd0d.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-b9dcf9d2e50a1eaf42fc664b50a3fd0d.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-b9dcf9d2e50a1eaf42fc664b50a3fd0d.ttf"
+        ),
     ),
     (
         "Excalifont-Regular-be310b9bcd4f1a43f571c46df7809174.ttf",
-        include_bytes!("../assets/fonts/Excalifont-Regular-be310b9bcd4f1a43f571c46df7809174.ttf"),
+        include_bytes!(
+            "../../../assets/fonts/Excalifont-Regular-be310b9bcd4f1a43f571c46df7809174.ttf"
+        ),
     ),
 ];
 

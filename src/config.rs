@@ -37,9 +37,9 @@ impl Default for DrawingConfig {
     fn default() -> Self {
         Self {
             default_color: "#1e1e1e".into(),
-            default_width: 2.0,
+            default_width: 3.0,
             font_family: "Excalifont".into(),
-            font_size: 20.0,
+            font_size: 24.0,
             roughness: 1.0,
             fill_color: "transparent".into(),
             fill_style: FillStyle::Solid,

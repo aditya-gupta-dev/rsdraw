@@ -1,17 +1,21 @@
 #[cfg(not(target_os = "linux"))]
 compile_error!("rsdraw requires Linux and a Wayland compositor with layer-shell support.");
 mod app;
-mod canvas;
 mod config;
-mod fonts;
 mod ipc;
 mod keys;
 mod model;
-mod rendering;
+use rsdraw_core::{canvas, fonts};
+
+const VERSION: &str = "rsdraw 1.0.0";
 
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mut path = config::config_path();
+    if args.first().is_some_and(|s| s == "--version" || s == "-v") {
+        println!("{}", VERSION);
+        return;
+    }
     if args.first().is_some_and(|s| s == "--config") {
         if args.len() < 2 {
             eprintln!("--config requires a path");

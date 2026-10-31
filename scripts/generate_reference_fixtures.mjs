@@ -76,9 +76,31 @@ try {
    fixtures.push({request,expected:oracle.render(request)});
   }
  }
+ // Exercise combinations, not just one changed property at a time.
+ let random=0x1234567;
+ const next=()=>{random=(Math.imul(random,1664525)+1013904223)>>>0;return random/4294967296;};
+ for (const tool of ['rectangle','diamond','ellipse','line','arrow']) {
+  for(let i=0;i<36;i++) {
+   const width=i===0?0:next()*700,height=i===1?0:next()*480;
+   const request={...base,tool,width,height,end:[width*(i%2?-1:1),height*(i%3?-1:1)],
+    seed:Math.floor(next()*2147483646)+1,roughness:[0,.5,1,2,3][i%5],strokeWidth:[.5,1,2,4,12][i%5],
+    strokeStyle:['solid','dashed','dotted'][i%3],rounded:tool!=='ellipse'&&i%2===0,
+    filled:true,fillStyle:['solid','hachure','cross-hatch'][Math.floor(i/3)%3]};
+   fixtures.push({request,expected:oracle.render(request)});
+  }
+ }
+ const traces=[[],[[0,0]],[[0,0],[12,7]],Array.from({length:40},(_,i)=>[i*7,Math.sin(i*.23)*35]),
+  [[0,0],[0,0],[20,0],[20,0],[30,0],[15,0],[-30,0]],
+  [[0,0],[20,0],[20,30],[40,30],[40,-20],[-10,-20]],
+  Array.from({length:128},(_,i)=>[i*100,i%2?200:0]),
+  Array.from({length:256},(_,i)=>[Math.cos(i/100)*80,Math.sin(i/100)*80])];
  for(const variability of ['constant','variable']) {
-  for(const points of [[[0,0]],[[0,0],[12,7]],Array.from({length:40},(_,i)=>[i*7,Math.sin(i*.23)*35])]) {
-   const request={...base,tool:'freehand',variability,points};fixtures.push({request,expected:oracle.render(request)});
+  for(const trace of traces) {
+   const origin=trace[0]||[0,0];
+   const points=trace.map(p=>[p[0]-origin[0],p[1]-origin[1]]);
+   for(const strokeWidth of [.5,2,4,12]) {
+    const request={...base,tool:'freehand',variability,points,strokeWidth};fixtures.push({request,expected:oracle.render(request)});
+   }
   }
  }
  const palette=[[30,30,30],[255,255,255],[224,49,49],[47,158,68],[25,113,194],[240,140,0],[232,89,12],[12,133,153]];

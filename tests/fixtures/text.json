@@ -1,0 +1,286 @@
+{
+  "referenceCommit": "4c37956ba5f04ec342a9d9d5891a38f22c5b7b4e",
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+  "fixtures": [
+    {
+      "text": "A little less perfect. A lot more human.",
+      "fontSize": 12,
+      "width": 227.18560791015625,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "Rectangle",
+      "fontSize": 12,
+      "width": 56.9884033203125,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "AVATAR Toffee office fi fl",
+      "fontSize": 12,
+      "width": 157.5371551513672,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "Latin · Ελληνικά · Кириллица",
+      "fontSize": 12,
+      "width": 160.52516174316406,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "Árvíztűrő tükörfúrógép",
+      "fontSize": 12,
+      "width": 132.85289001464844,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "Line one\n\nLine three\n",
+      "fontSize": 12,
+      "width": 58.03240966796875,
+      "height": 60,
+      "baseline": 10.572
+    },
+    {
+      "text": "tabs\tand\tspaces",
+      "fontSize": 12,
+      "width": 162.88917541503906,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "CRLF\r\nCR\rLF\n",
+      "fontSize": 12,
+      "width": 30.828216552734375,
+      "height": 60,
+      "baseline": 10.572
+    },
+    {
+      "text": "  leading and trailing  ",
+      "fontSize": 12,
+      "width": 128.04090881347656,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "",
+      "fontSize": 12,
+      "width": 4.8000335693359375,
+      "height": 15,
+      "baseline": 10.572
+    },
+    {
+      "text": "A little less perfect. A lot more human.",
+      "fontSize": 20,
+      "width": 378.6396789550781,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "Rectangle",
+      "fontSize": 20,
+      "width": 94.97990417480469,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "AVATAR Toffee office fi fl",
+      "fontSize": 20,
+      "width": 262.55975341796875,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "Latin · Ελληνικά · Кириллица",
+      "fontSize": 20,
+      "width": 267.539794921875,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "Árvíztűrő tükörfúrógép",
+      "fontSize": 20,
+      "width": 221.41973876953125,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "Line one\n\nLine three\n",
+      "fontSize": 20,
+      "width": 96.71990966796875,
+      "height": 100,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "tabs\tand\tspaces",
+      "fontSize": 20,
+      "width": 271.4798583984375,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "CRLF\r\nCR\rLF\n",
+      "fontSize": 20,
+      "width": 51.37994384765625,
+      "height": 100,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "  leading and trailing  ",
+      "fontSize": 20,
+      "width": 213.3998260498047,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "",
+      "fontSize": 20,
+      "width": 8,
+      "height": 25,
+      "baseline": 17.619999999999997
+    },
+    {
+      "text": "A little less perfect. A lot more human.",
+      "fontSize": 36,
+      "width": 681.5523681640625,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "Rectangle",
+      "fontSize": 36,
+      "width": 170.9640655517578,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "AVATAR Toffee office fi fl",
+      "fontSize": 36,
+      "width": 472.6082763671875,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "Latin · Ελληνικά · Кириллица",
+      "fontSize": 36,
+      "width": 481.5721740722656,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "Árvíztűrő tükörfúrógép",
+      "fontSize": 36,
+      "width": 398.55615234375,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "Line one\n\nLine three\n",
+      "fontSize": 36,
+      "width": 174.0960235595703,
+      "height": 180,
+      "baseline": 31.716
+    },
+    {
+      "text": "tabs\tand\tspaces",
+      "fontSize": 36,
+      "width": 488.664306640625,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "CRLF\r\nCR\rLF\n",
+      "fontSize": 36,
+      "width": 92.48403930664062,
+      "height": 180,
+      "baseline": 31.716
+    },
+    {
+      "text": "  leading and trailing  ",
+      "fontSize": 36,
+      "width": 384.12017822265625,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "",
+      "fontSize": 36,
+      "width": 14.400009155273438,
+      "height": 45,
+      "baseline": 31.716
+    },
+    {
+      "text": "A little less perfect. A lot more human.",
+      "fontSize": 63.5,
+      "width": 1202.1806640625,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "Rectangle",
+      "fontSize": 63.5,
+      "width": 301.5611572265625,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "AVATAR Toffee office fi fl",
+      "fontSize": 63.5,
+      "width": 833.6270751953125,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "Latin · Ελληνικά · Кириллица",
+      "fontSize": 63.5,
+      "width": 849.4384765625,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "Árvíztűrő tükörfúrógép",
+      "fontSize": 63.5,
+      "width": 703.0077514648438,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "Line one\n\nLine three\n",
+      "fontSize": 63.5,
+      "width": 307.08563232421875,
+      "height": 317.5,
+      "baseline": 55.9435
+    },
+    {
+      "text": "tabs\tand\tspaces",
+      "fontSize": 63.5,
+      "width": 861.9479370117188,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "CRLF\r\nCR\rLF\n",
+      "fontSize": 63.5,
+      "width": 163.1313018798828,
+      "height": 317.5,
+      "baseline": 55.9435
+    },
+    {
+      "text": "  leading and trailing  ",
+      "fontSize": 63.5,
+      "width": 677.5442504882812,
+      "height": 79.375,
+      "baseline": 55.9435
+    },
+    {
+      "text": "",
+      "fontSize": 63.5,
+      "width": 25.399978637695312,
+      "height": 79.375,
+      "baseline": 55.9435
+    }
+  ]
+}

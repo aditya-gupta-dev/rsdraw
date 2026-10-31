@@ -1,14 +1,7 @@
 //! Render the actual Cairo/Pango engine without opening an overlay.
 //! cargo run --example render_gallery -- /tmp/rsdraw-gallery.png
-#[allow(dead_code)]
-#[path = "../src/canvas.rs"]
-mod canvas;
-#[path = "../src/fonts.rs"]
-mod fonts;
-#[allow(dead_code)]
-#[path = "../src/rendering.rs"]
-mod rendering;
 use canvas::*;
+use rsdraw_core::{canvas, fonts};
 fn main() {
     fonts::register().expect("register bundled fonts");
     let output = std::env::args()

@@ -1,62 +1,78 @@
 # Development
 
-rsdraw is a native GTK/Cairo overlay. The binary embeds QuickJS and the pinned upstream rendering libraries. No Node/npm/browser runtime or reference checkout is required to build or run it. A C compiler is needed to build QuickJS.
+rsdraw is a Cargo workspace with two crates. Rendering is native Rust; no QuickJS, JavaScript runtime, Node, browser, or Excalidraw checkout is needed to build or run it.
 
 ## Layout
 
-- `src/canvas.rs`: element geometry, replay of upstream path operations, reference dark-mode colors, Pango text, bounds/hit testing, and color parsing.
-- `src/rendering.rs`, `assets/rendering/excalidraw.js`: embedded JS engine and Excalidraw option/shape bridge.
-- `assets/vendor/`: pinned upstream rendering bundles, licenses, and provenance hashes.
-- `tests/fixtures/excalidraw.json`, `scripts/generate_reference_fixtures.mjs`: independent reference-generated geometry/color cases.
-- `src/model.rs`: scene edits, pointer gestures, selection, text lifecycle, pan/zoom, and bounded undo/redo history.
-- `src/keys.rs`: action names, key parsing, modifier normalization, conflict checks, and contextual dispatch.
-- `src/config.rs`: config loading, validation, default merging, and generated help.
-- `config/default.toml`: complete default settings and keybindings; embedded directly in the binary.
-- `src/fonts.rs`, `assets/fonts/`: bundled Excalifont and process-local Fontconfig registration.
-- `src/app.rs`, `src/style.css`: cached transparent overlay, on-demand help/color palette, native text editor, and event wiring. No permanent toolbar or property panels.
-- `src/ipc.rs`: local socket commands with execution responses, timeouts, and validation errors.
-- `examples/render_gallery.rs`: headless rendering example using the same Cairo/Pango renderer.
+- `crates/rsdraw-core/`: independently buildable drawing library; Cairo/Pango dependencies, no GTK or Wayland dependencies.
+- `crates/rsdraw-core/src/rough.rs`: seeded RoughJS 4.6.4 operations, corner geometry, arrowheads, curve subdivision, and hachure scan conversion.
+- `crates/rsdraw-core/src/freehand.rs`: constant-width laser outlines and reference SVG decimal truncation.
+- `crates/rsdraw-core/src/variable_freehand.rs`: native perfect-freehand 1.2.0 simulated-pressure strokes.
+- `crates/rsdraw-core/src/rendering.rs`: typed requests, path data, validation, and direct freehand fill operations.
+- `crates/rsdraw-core/src/canvas.rs`: elements, Cairo replay, reference colors, hit testing, and cached geometry.
+- `crates/rsdraw-core/src/text.rs`: text normalization, fractional measurements, per-family line heights, and per-line alphabetic baselines.
+- `crates/rsdraw-core/src/fonts.rs`, `assets/fonts/`: process-local Fontconfig registration and bundled Excalifont.
+- `src/`: main `rsdraw` crate. GTK window/input (`app.rs`), scene edits/history (`model.rs`), keys, config, and IPC.
+- `examples/`: gallery and drawing benchmark importing `rsdraw_core`, without including private source files.
+- `tests/fixtures/`, `scripts/`: independent reference data and optional development-only JavaScript oracle generators.
+- `assets/vendor/`: upstream bundles used only by fixture generation, licenses, and provenance. None of the JavaScript is included in the application.
 
-## Verification (maximum five cores)
+## Verification (five cores)
+
+The checked-in `.cargo/config.toml` caps Cargo at five jobs. CPU affinity also limits internal compiler/linker and test threads. Choose five permitted CPUs if 0–4 are unavailable.
 
 ```bash
-cargo fmt --check
-# CPU affinity also limits internal compiler/linker and test threads.
-taskset -c 0-4 cargo test -j 5 -- --test-threads=5
-taskset -c 0-4 cargo clippy -j 5 --all-targets -- -D warnings
-taskset -c 0-4 cargo build -j 5
+cargo fmt --all --check
+taskset -c 0-4 cargo test --workspace -j 5 -- --test-threads=5
+taskset -c 0-4 cargo clippy --workspace --all-targets -j 5 -- -D warnings
+taskset -c 0-4 cargo build --release -j 5
 taskset -c 0-4 cargo run -j 5 --example render_gallery -- /tmp/rsdraw-gallery.png
-./target/debug/rsdraw --config config/default.toml check-config
+./target/release/rsdraw --config config/default.toml check-config
 ```
 
-Choose up to five CPUs available to the current process if 0–4 are unavailable. Preserve the local Cargo job limit when building. An additional native GTK smoke test can be run on Wayland with `taskset -c 0-4 cargo test -j 5 native_text_editor_and_empty_canvas -- --ignored --test-threads=1`. It opens a temporary overlay and checks the hidden controls, text editing, color picker, IPC validation, and passthrough.
+The core can be tested separately with `cargo test -p rsdraw-core -j 5`. A Wayland compositor is not required for its tests or examples. Append `--dark` to the gallery command to inspect dark-mode colors.
 
-Tests cover deterministic rendering, color input, shape constraints, key matching, config inheritance/errors, scene history, cancellation, erasing, text commits, and zoom coordinates. The render example requires font libraries but no Wayland display.
+On a layer-shell compositor, run the native integration checks separately (GTK must run on one test thread):
 
-For an interactive smoke test on a layer-shell compositor, start with the checked-in config. Check the uncluttered transparent canvas, draw each tool in both directions, test Shift/Alt constraints, type multiline and Unicode text, finish/re-edit text, and undo/redo/clear. Open and close help/color palettes and test toggle passthrough. `Ctrl+Q` or `rsdraw quit` stops the daemon. Existing compositor shortcuts may intercept keys before GTK receives them.
+```bash
+taskset -c 0-4 cargo test -j 5 native_text_editor_and_empty_canvas -- --ignored --test-threads=1
+taskset -c 0-4 cargo test -j 5 themed_window_keeps_clear_pixels_transparent -- --ignored --test-threads=1
+```
 
-Rendering is deterministic for an element's stored seed. Do not draw using fresh randomness on every frame. Geometry/style lives on each element, so changing defaults never changes older elements unless selected explicitly. Text uses Pango shaping/fallback and regular-weight Excalifont. The paths come from the actual upstream libraries and are compared to the reference code. Cairo/Pango supply native antialiasing and font rasterization; scene file interoperability is not implemented.
+These open temporary test windows. They cover editing, hidden controls, palettes, IPC validation, passthrough, and transparent pixels under an opaque GTK user theme. They do not change the running daemon.
 
-## Reference checkout
+## Reference and scope
 
-`excalidraw/` is a local, read-only reference and is ignored by Git. Do not modify, stage, or commit it. The bundled font subsets were decoded from the reference's WOFF2 files into TTF for native font loading; its license is retained in `assets/fonts/OFL.txt`. See [third-party notices](../THIRD_PARTY_NOTICES.md).
+`excalidraw/` is a read-only, ignored reference checkout. Do not modify, stage, or commit it. The oracle records its exact commit. The supported rectangle, diamond, ellipse, two-point line/arrow, constant/variable freehand, and text tools follow its rendering algorithms. Triangle is an rsdraw extension. Other Excalidraw features (bound labels, elbow arrows, images, frames, scene-file interoperability) are not implemented.
 
-## Transparent overlay regression
+The core preserves seeded operation order, including random numbers consumed by zero-amplitude offsets. Do not introduce fresh random numbers on redraw. Paths are shared across history clones and cached by geometry/seed/style. Color changes reuse cached paths. Freehand fills go directly to Cairo as closed quadratic paths converted to cubics, preserving the reference's SVG coordinate truncation.
 
-The window, canvas container, and drawing area have scoped transparent styles applied above GTK user-theme priority. Clearing the Cairo surface alone does not clear a GTK window background painted underneath it. Keep help/picker panel backgrounds separate from these shell rules.
+The 314 geometry fixtures compare every operation and rendered option within 1e-9. Freehand tests compare outline points and Cairo pixels against independently generated reference paths, including duplicate samples, sharp corners, reversals, empty inputs, long traces, and multiple widths. These pixel checks compare paths through the same Cairo backend; they do not claim browser rasterization is identical. Invalid non-finite outlines are rejected before reaching Cairo.
 
-Run `taskset -c 0-4 cargo test -j 5 themed_window_keeps_clear_pixels_transparent -- --ignored --test-threads=1` on Wayland to verify rendered pixels against an opaque user theme. It checks that clear pixels have zero alpha while drawn pixels stay opaque, and briefly opens a separate test window without touching the running daemon.
+Text uses the original Excalifont subsets, normalizes CR/CRLF and tabs, measures fractional advances, retains blank lines, and draws every line at Excalidraw's alphabetic baseline. Forty Chrome reference cases cover four font sizes, multiline text, whitespace, ligatures, accents, Greek, and Cyrillic. Width tolerance is 0.08 px for native/browser shaping precision; baseline and line-box height tolerance is 1e-9. Native antialiasing and fallback fonts can differ from the browser.
 
-## Rendering parity
-
-RoughJS 4.6.4 and perfect-freehand 1.2.0 match the versions pinned by `packages/excalidraw/package.json`. The constant-width freehand generator is bundled from the reference's `packages/laser-pointer/src` with pinned esbuild. Excalidraw's roundness, roughness reduction for small shapes, preserveVertices, dash/fill settings, arrowhead geometry, freehand sizes/easing, and SVG outline rounding are used directly. Cached paths keep previews, redraws, and undo stable. The embedded JS compatibility shim supplies legacy `RegExp.$1` captures used by RoughJS's SVG parser.
-
-`paths_match_the_actual_excalidraw_reference` compares every path operation and generator option against the checked-in oracle fixtures, with a 1e-9 numerical tolerance for JavaScript-engine floating-point differences. The fixtures are generated by extracting and running the actual functions from the local reference, separately from the application bridge. Color tests compare the reference's inversion/hue rotation and confirm fully opaque ink pixels for each palette color on both themes.
-
-To regenerate fixtures with the read-only clone present:
+Regenerate shape/color fixtures from the actual clone:
 
 ```bash
 taskset -c 0-4 env GOMAXPROCS=5 node scripts/generate_reference_fixtures.mjs
 ```
 
-This optional development operation uses Node and downloads pinned esbuild through `npm exec`; ordinary builds/tests use only the vendored bundles and fixtures. The generator records the reference commit. To render a dark preview, append `--dark` to the gallery example's arguments. Keep upstream bundle bytes unmodified and update the provenance hashes when intentionally updating versions.
+This optional development step extracts actual Excalidraw functions and uses pinned upstream bundles, independently of the Rust renderer. It downloads pinned esbuild through `npm exec`. No normal Cargo command needs Node or network access for these fixtures.
+
+For browser text fixtures:
+
+```bash
+node scripts/generate_text_reference.mjs /tmp/rsdraw-text-reference.html
+```
+
+Open the generated HTML in Chrome. It loads the clone's WOFF2s with the reference unicode ranges and computes Canvas `measureText` widths and reference baselines. Once the title says `ready`, save `window.reference` as JSON to `tests/fixtures/text.json`. The JSON records the browser version and reference commit. No Rust output is used as an oracle.
+
+## Performance
+
+Measure fresh and cached native drawing on the same machine:
+
+```bash
+taskset -c 0-4 cargo run --release -j 5 --example benchmark_drawing
+```
+
+This is a headless Cairo benchmark, not a full compositor frame-rate measurement. Both constant and variable freehand now run in Rust. Input samples are preserved; there is no JS conversion or SVG parsing per pointer frame.
