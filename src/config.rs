@@ -160,6 +160,21 @@ mod tests {
         assert_eq!(c.keys[&Action::ToolFreehand].display(), "b / 9");
         assert!(c.keys[&Action::Quit].names().is_empty());
         assert_eq!(c.keys[&Action::ToolText].display(), "t / 8");
+        assert_eq!(c.keys[&Action::SaveScreenshot].display(), "Ctrl+s");
+        assert_eq!(
+            Config::parse("[drawing]\ntheme='light'")
+                .unwrap()
+                .drawing
+                .theme,
+            Theme::Light
+        );
+        assert_eq!(
+            Config::parse("[drawing]\ntheme='dark'")
+                .unwrap()
+                .drawing
+                .theme,
+            Theme::Dark
+        );
     }
     #[test]
     fn explicit_keys_override_inherited_shortcuts() {
@@ -172,6 +187,7 @@ mod tests {
     fn invalid_config_is_reported() {
         for s in [
             "[drawing]\nroughness=nan",
+            "[drawing]\ntheme='invalid'",
             "[drawing]\ndefault_color='oops'",
             "[keys]\nundo='r'\ntool_rectangle='r'",
             "[keys]\nundoo='z'",

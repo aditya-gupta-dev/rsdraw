@@ -9,7 +9,7 @@ use gtk4::prelude::*;
 use gtk4::{
     gdk, glib, Align, Application, ApplicationWindow, Box as GtkBox, Button, DrawingArea, Entry,
     EventControllerKey, EventControllerScroll, GestureClick, GestureDrag, Label, Orientation,
-    Overlay, ScrolledWindow, TextView,
+    Overlay, Scale, ScrolledWindow, Switch, TextView,
 };
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::{
@@ -21,6 +21,7 @@ struct State {
     scene: Scene,
     help: bool,
     active: bool,
+    capturing: bool,
     palette_target: Option<bool>,
 }
 #[derive(Clone)]
@@ -30,6 +31,11 @@ struct Ui {
     editor: TextView,
     editor_seed: Rc<Cell<Option<u64>>>,
     help: ScrolledWindow,
+    roughness_slider: Scale,
+    dark_mode: Switch,
+    syncing_settings: Rc<Cell<bool>>,
+    notice: Label,
+    notice_generation: Rc<Cell<u64>>,
     palette: GtkBox,
     palette_title: Label,
     color_entry: Entry,
@@ -40,9 +46,19 @@ impl Ui {
     fn refresh(&self) {
         let s = self.state.borrow();
         let scene = &s.scene;
-        self.help.set_visible(s.active && s.help);
+        self.help.set_visible(s.active && s.help && !s.capturing);
+        self.canvas.set_sensitive(!s.capturing);
+        self.syncing_settings.set(true);
+        self.roughness_slider.set_value(scene.style.roughness);
+        self.dark_mode.set_active(scene.style.theme == Theme::Dark);
+        self.syncing_settings.set(false);
+        if scene.style.theme == Theme::Dark {
+            self.window.add_css_class("dark");
+        } else {
+            self.window.remove_css_class("dark");
+        }
         self.palette
-            .set_visible(s.active && s.palette_target.is_some());
+            .set_visible(s.active && s.palette_target.is_some() && !s.capturing);
         if self.palette.is_visible() {
             for (color, label) in self.color_swatches.borrow().iter() {
                 let swatch = display_color(*color, scene.style.theme);
@@ -118,6 +134,10 @@ impl Ui {
         self.canvas.queue_draw();
     }
     fn action(&self, a: Action) {
+        if a == Action::SaveScreenshot {
+            self.save_screenshot_to(crate::screenshot::directory());
+            return;
+        }
         if a == Action::Quit {
             self.window.close();
             return;
@@ -136,6 +156,11 @@ impl Ui {
             s.help = !s.help;
             drop(s);
             self.refresh();
+            if self.help.is_visible() {
+                self.roughness_slider.grab_focus();
+            } else {
+                self.canvas.grab_focus();
+            }
             return;
         }
         if matches!(a, Action::Picker | Action::FillPicker) {
@@ -254,6 +279,64 @@ impl Ui {
         }
         drop(s);
         self.refresh();
+    }
+    fn save_screenshot_to(&self, directory: std::path::PathBuf) {
+        {
+            let mut state = self.state.borrow_mut();
+            if state.capturing {
+                return;
+            }
+            state.scene.commit_text();
+            state.scene.cancel_drag();
+            state.scene.space_down = false;
+            state.capturing = true;
+        }
+        self.notice.set_visible(false);
+        self.refresh();
+        let output = self
+            .window
+            .surface()
+            .and_then(|surface| surface.display().monitor_at_surface(&surface))
+            .and_then(|monitor| monitor.connector());
+        let ui = self.clone();
+        glib::spawn_future_local(async move {
+            // Allow GTK and the compositor to present the clean annotation
+            // frame before grim captures it; never block the GTK main thread.
+            glib::timeout_future(std::time::Duration::from_millis(150)).await;
+            let result = match crate::screenshot::capture(output.as_deref()).await {
+                Ok(bytes) => {
+                    gtk4::gio::spawn_blocking(move || crate::screenshot::save(&directory, &bytes))
+                        .await
+                        .unwrap_or_else(|_| Err("Screenshot saving failed.".into()))
+                }
+                Err(error) => Err(error),
+            };
+            ui.state.borrow_mut().capturing = false;
+            ui.refresh();
+            match result {
+                Ok(path) => ui.show_notice(&format!("Screenshot saved: {}", path.display()), false),
+                Err(error) => ui.show_notice(&error, true),
+            }
+        });
+    }
+    fn show_notice(&self, message: &str, error: bool) {
+        self.notice.set_text(message);
+        if error {
+            self.notice.add_css_class("error");
+            eprintln!("{message}");
+        } else {
+            self.notice.remove_css_class("error");
+            println!("{message}");
+        }
+        self.notice.set_visible(true);
+        let generation = self.notice_generation.get().wrapping_add(1);
+        self.notice_generation.set(generation);
+        let ui = self.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_secs(8), move || {
+            if ui.notice_generation.get() == generation {
+                ui.notice.set_visible(false);
+            }
+        });
     }
     fn choose_color(&self, fill: bool) {
         let mut s = self.state.borrow_mut();
@@ -428,6 +511,7 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
         scene: Scene::new(config),
         help: false,
         active: true,
+        capturing: false,
         palette_target: None,
     }));
     let bindings = Rc::new(Bindings::compile(&config.keys).expect("validated config"));
@@ -458,6 +542,40 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
     help.add_css_class("panel");
     help.set_visible(false);
     let help_content = GtkBox::new(Orientation::Vertical, 10);
+    let theme_row = GtkBox::new(Orientation::Horizontal, 12);
+    let theme_label = Label::with_mnemonic("_Dark mode");
+    theme_label.set_hexpand(true);
+    theme_label.set_halign(Align::Start);
+    let dark_mode = Switch::new();
+    dark_mode.set_valign(Align::Center);
+    dark_mode.set_active(config.drawing.theme == Theme::Dark);
+    theme_label.set_mnemonic_widget(Some(&dark_mode));
+    theme_row.append(&theme_label);
+    theme_row.append(&dark_mode);
+    help_content.append(&theme_row);
+    let roughness_label = Label::with_mnemonic("_Sloppiness");
+    roughness_label.set_halign(Align::Start);
+    help_content.append(&roughness_label);
+    let roughness_slider = Scale::with_range(Orientation::Horizontal, 0., 3., 0.1);
+    roughness_slider.set_digits(1);
+    roughness_slider.set_draw_value(true);
+    roughness_slider.set_value_pos(gtk4::PositionType::Top);
+    roughness_slider.set_hexpand(true);
+    roughness_slider.set_value(config.drawing.roughness);
+    for (value, label) in [
+        (0., "Clean"),
+        (1., "Sketchy"),
+        (2., "Rough"),
+        (3., "Very rough"),
+    ] {
+        roughness_slider.add_mark(value, gtk4::PositionType::Bottom, Some(label));
+    }
+    roughness_label.set_mnemonic_widget(Some(&roughness_slider));
+    help_content.append(&roughness_slider);
+    caption(
+        &help_content,
+        "Adjusts outlines and fills for new and selected shapes.",
+    );
     caption(&help_content, "Keyboard shortcuts");
     for (keys, label) in config.help_lines() {
         let row = GtkBox::new(Orientation::Horizontal, 12);
@@ -501,18 +619,65 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
     palette.append(&color_entry);
     caption(&palette, "Escape closes · use transparent for no fill");
     root.add_overlay(&palette);
+    let notice = Label::new(None);
+    notice.add_css_class("panel");
+    notice.set_halign(Align::Center);
+    notice.set_valign(Align::End);
+    notice.set_margin_bottom(24);
+    notice.set_wrap(true);
+    notice.set_max_width_chars(80);
+    notice.set_can_target(false);
+    notice.set_visible(false);
+    root.add_overlay(&notice);
     let ui = Ui {
         state: state.clone(),
         canvas: canvas.clone(),
         editor: editor.clone(),
         editor_seed: Rc::new(Cell::new(None)),
         help,
+        roughness_slider: roughness_slider.clone(),
+        dark_mode: dark_mode.clone(),
+        syncing_settings: Rc::new(Cell::new(false)),
+        notice,
+        notice_generation: Rc::new(Cell::new(0)),
         palette,
         palette_title,
         color_entry: color_entry.clone(),
         color_swatches: Rc::new(RefCell::new(Vec::new())),
         window: window.clone(),
     };
+    {
+        let ui = ui.clone();
+        roughness_slider.connect_value_changed(move |slider| {
+            // Refresh also sets the value (e.g. after an IPC command).
+            // Only user changes should edit the scene or add undo entries.
+            if ui.syncing_settings.get() {
+                return;
+            }
+            ui.state
+                .borrow_mut()
+                .scene
+                .restyle(|style| style.roughness = slider.value());
+            ui.refresh();
+        });
+    }
+    {
+        let ui = ui.clone();
+        dark_mode.connect_active_notify(move |switch| {
+            if ui.syncing_settings.get() {
+                return;
+            }
+            ui.state
+                .borrow_mut()
+                .scene
+                .set_theme(if switch.is_active() {
+                    Theme::Dark
+                } else {
+                    Theme::Light
+                });
+            ui.refresh();
+        });
+    }
     for (i, name) in [
         "black",
         "red",
@@ -579,6 +744,10 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
             cr.scale(scene.zoom, scene.zoom);
             if let Some(e) = &scene.preview {
                 e.draw(cr);
+            }
+            if s.capturing {
+                let _ = cr.restore();
+                return;
             }
             if let Some(b) = scene.selection_bounds() {
                 cr.set_source_rgb(0.41, 0.33, 0.9);
@@ -722,6 +891,23 @@ fn build_ui(app: &Application, config: &Config) -> Option<Ui> {
         let ui = ui.clone();
         let bindings = bindings.clone();
         key.connect_key_pressed(move |_, key, _, mods| {
+            if ui.state.borrow().capturing {
+                return glib::Propagation::Stop;
+            }
+            if bindings.action(key, mods, false) == Some(Action::SaveScreenshot) {
+                ui.action(Action::SaveScreenshot);
+                return glib::Propagation::Stop;
+            }
+            if ui.help.is_visible() {
+                if let Some(action @ (Action::Cancel | Action::Help | Action::Quit)) =
+                    bindings.action(key, mods, false)
+                {
+                    ui.action(action);
+                    return glib::Propagation::Stop;
+                }
+                // Let the slider receive arrows/Home/End and normal focus navigation.
+                return glib::Propagation::Proceed;
+            }
             if ui.state.borrow().palette_target.is_some() {
                 if bindings.action(key, mods, false) == Some(Action::Cancel) {
                     ui.action(Action::Cancel);
@@ -971,6 +1157,85 @@ fn handle_ipc(command: &str, ui: &Ui) -> String {
 mod tests {
     use super::*;
     #[test]
+    #[ignore = "requires Wayland layer-shell and grim; captures a temporary test overlay"]
+    fn desktop_screenshot_hides_controls_and_saves_annotations() {
+        gtk4::init().unwrap();
+        let app = Application::builder()
+            .application_id("io.github.rsdraw.capturetest")
+            .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
+            .build();
+        app.register(None::<&gtk4::gio::Cancellable>).unwrap();
+        let mut config = Config::default();
+        config.drawing.theme = Theme::Light;
+        let ui = build_ui(&app, &config).unwrap();
+        let context = glib::MainContext::default();
+        context.block_on(glib::timeout_future(std::time::Duration::from_millis(250)));
+        assert!(!ui.dark_mode.is_active());
+        let (w, h) = (ui.canvas.width() as f64, ui.canvas.height() as f64);
+        assert!(w > 0. && h > 0.);
+        {
+            let mut state = ui.state.borrow_mut();
+            let mut style = state.scene.style.clone();
+            style.color = parse_color("#00ff00").unwrap();
+            style.fill = style.color;
+            style.fill_style = FillStyle::Solid;
+            style.roughness = 0.;
+            state.scene.elements.push(Element::new(
+                Geometry::Shape {
+                    tool: Tool::Rectangle,
+                    start: (w / 2. - 100., h / 2. - 100.),
+                    end: (w / 2. + 100., h / 2. + 100.),
+                },
+                style,
+            ));
+            state.scene.selected = [0].into();
+        }
+        ui.action(Action::Help);
+        let directory =
+            std::env::temp_dir().join(format!("rsdraw-capture-test-{}", std::process::id()));
+        ui.save_screenshot_to(directory.clone());
+        assert!(ui.state.borrow().capturing);
+        assert!(!ui.help.is_visible());
+        assert!(!ui.notice.is_visible());
+        context.block_on(async {
+            glib::future_with_timeout(std::time::Duration::from_secs(20), async {
+                while ui.state.borrow().capturing {
+                    glib::timeout_future(std::time::Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .unwrap();
+        });
+        assert!(!ui.notice.has_css_class("error"), "{}", ui.notice.text());
+        assert!(ui.help.is_visible(), "restore the menu after capture");
+        assert!(ui.canvas.is_sensitive());
+        let files: Vec<_> = std::fs::read_dir(&directory)
+            .unwrap()
+            .map(|f| f.unwrap().path())
+            .collect();
+        assert_eq!(files.len(), 1);
+        let mut file = std::fs::File::open(&files[0]).unwrap();
+        let mut image = cairo::ImageSurface::create_from_png(&mut file).unwrap();
+        // The menu covers the center of the screen before capture. The saved
+        // center must instead contain the annotation's solid green fill.
+        let offset = (image.height() / 2 * image.stride() + image.width() / 2 * 4) as usize;
+        let pixel = u32::from_ne_bytes(
+            image.data().unwrap()[offset..offset + 4]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(
+            pixel & 0xffffff,
+            0x00ff00,
+            "capture must contain annotations, not the help panel"
+        );
+        ui.window.close();
+        while context.pending() {
+            context.iteration(false);
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
     #[ignore = "requires a Wayland display; briefly opens a transparency test window"]
     fn themed_window_keeps_clear_pixels_transparent() {
         gtk4::init().unwrap();
@@ -1064,8 +1329,8 @@ mod tests {
         let overlay = ui.window.child().unwrap().downcast::<Overlay>().unwrap();
         assert_eq!(
             overlay.observe_children().n_items(),
-            4,
-            "canvas and hidden editor, help, color picker only"
+            5,
+            "canvas and hidden editor, help, color picker, screenshot notice"
         );
         ui.state.borrow_mut().scene.begin_text((300., 200.), None);
         ui.refresh();
@@ -1099,6 +1364,66 @@ mod tests {
         let width = ui.state.borrow().scene.style.width;
         assert!(handle_ipc("width NaN", &ui).starts_with("ERROR"));
         assert_eq!(ui.state.borrow().scene.style.width, width);
+        let (index, original_roughness) = {
+            let mut state = ui.state.borrow_mut();
+            let style = state.scene.style.clone();
+            let roughness = style.roughness;
+            let index = state.scene.elements.len();
+            state.scene.elements.push(Element::new(
+                Geometry::Shape {
+                    tool: Tool::Rectangle,
+                    start: (40., 40.),
+                    end: (180., 120.),
+                },
+                style,
+            ));
+            state.scene.selected = [index].into();
+            (index, roughness)
+        };
+        ui.action(Action::Help);
+        assert!(ui.help.is_visible());
+        assert!(ui.dark_mode.is_active());
+        ui.dark_mode.set_active(false);
+        assert_eq!(ui.state.borrow().scene.style.theme, Theme::Light);
+        assert!(ui
+            .state
+            .borrow()
+            .scene
+            .elements
+            .iter()
+            .all(|e| e.style.theme == Theme::Light));
+        assert!(!ui.window.has_css_class("dark"));
+        assert_eq!(handle_ipc("theme dark", &ui), "OK");
+        assert!(ui.dark_mode.is_active());
+        assert!(ui.window.has_css_class("dark"));
+        assert_eq!(ui.roughness_slider.value(), original_roughness);
+        ui.roughness_slider.set_value(2.4);
+        assert_eq!(ui.state.borrow().scene.style.roughness, 2.4);
+        assert_eq!(ui.state.borrow().scene.elements[index].style.roughness, 2.4);
+        assert_eq!(
+            ui.state.borrow().scene.elements[index].style.theme,
+            Theme::Dark
+        );
+        ui.action(Action::Cancel);
+        assert!(!ui.help.is_visible());
+        ui.action(Action::Undo);
+        assert_eq!(
+            ui.state.borrow().scene.elements[index].style.roughness,
+            original_roughness
+        );
+        ui.action(Action::Redo);
+        assert_eq!(ui.state.borrow().scene.elements[index].style.roughness, 2.4);
+        // Programmatic refresh must sync the control without reentering the
+        // scene borrow or applying its value to the selection a second time.
+        ui.state.borrow_mut().scene.selected = [index].into();
+        assert_eq!(handle_ipc("roughness 0", &ui), "OK");
+        assert_eq!(ui.roughness_slider.value(), 0.);
+        ui.action(Action::Undo);
+        assert_eq!(ui.state.borrow().scene.elements[index].style.roughness, 2.4);
+        ui.action(Action::Help);
+        assert_eq!(ui.roughness_slider.value(), 0.);
+        ui.action(Action::Help);
+        assert!(!ui.help.is_visible());
         assert_eq!(handle_ipc("toggle", &ui), "OK");
         assert!(!ui.state.borrow().active);
         assert_eq!(handle_ipc("toggle", &ui), "OK");

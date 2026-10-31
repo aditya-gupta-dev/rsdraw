@@ -41,6 +41,7 @@ Press letter shortcuts without Shift unless shown. Tools stay active by default,
 | Redo | `Ctrl+Shift+Z`, `Ctrl+Y` |
 | Delete selection | `Delete`, `Backspace` |
 | Clear canvas | `Ctrl+Delete` |
+| Save desktop and annotations as a screenshot | `Ctrl+S` |
 | Select all | `Ctrl+A` |
 | Duplicate | `Ctrl+D` |
 | Copy / cut / paste elements in this session | `Ctrl+C`, `Ctrl+X`, `Ctrl+V` |
@@ -66,8 +67,12 @@ Undo/redo records complete edits, including eraser drags, resizing, styling, and
 | Help | `?`, `F1` |
 | Quit | `Ctrl+Q` |
 
-Choose `theme = "dark"` (default) for dark desktops, or `theme = "light"` for light ones. These use Excalidraw's actual color palettes/transformation, without painting a canvas background. Use `rsdraw theme dark` or `rsdraw theme light` to change it during the session.
+Choose `theme = "dark"` (default) for dark desktops, or `theme = "light"` for light ones. These use Excalidraw's actual color palettes/transformation, without painting a canvas background. The **Dark mode** switch in F1 changes the drawing colors and menu panels together. You can also use `rsdraw theme dark` or `rsdraw theme light`. Session changes do not rewrite `drawing.theme` in the config.
 
 Color and size commands affect the active defaults and selected elements. Stroke width and font size are independent. Set roughness, font family, fills, and stroke styles in the [config](CONFIGURATION.md) or through the [IPC commands](../README.md#commands).
+
+The **Sloppiness** slider at the top of the `F1` / `?` menu adjusts roughness from `0` (clean) to `3` (very rough), in steps of `0.1`. Changes apply immediately to drawing defaults and selected shapes; text and freehand appearance are unaffected. Drag the slider or use arrow keys, then close the menu with `Escape` or `F1`. Changes to selected elements can be undone after closing the menu. The slider follows the current session setting, including updates made with `rsdraw roughness`; it does not rewrite your config.
+
+`Ctrl+S` saves a PNG to your Pictures/Screenshots folder, with a timestamp and no overwriting. It includes the desktop beneath the annotations, hides menus and selection handles, and commits active text first. The shortcut also works from F1 and the text editor. Saving requires `grim`; an on-screen message reports the saved path or error.
 
 The drawing shortcuts follow Excalidraw for the tools implemented here. Triangle and quick color shortcuts are rsdraw extensions. This overlay focuses on basic annotations, and does not provide the web editor's image/frame tools, collaboration, scene files, libraries, grouping, rotation, or connector binding.

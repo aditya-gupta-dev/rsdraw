@@ -10,7 +10,7 @@ Requires a Wayland compositor with `wlr-layer-shell` support, such as Hyprland o
 
 ## Build and run
 
-System dependencies: GTK4 4.12+, gtk4-layer-shell, Cairo, Pango/PangoCairo, Fontconfig, and a Rust toolchain. The bundled font does not need to be installed system-wide.
+System dependencies: GTK4 4.12+, gtk4-layer-shell, Cairo, Pango/PangoCairo, Fontconfig, and a Rust toolchain. The bundled font does not need to be installed system-wide. Install `grim` to enable desktop screenshots with `Ctrl+S`.
 
 ```bash
 cargo build --release -j 5
@@ -38,7 +38,24 @@ Letters mean an unmodified key, not Shift+letter. Start drawing immediately with
 
 `Ctrl+Z` undoes, `Ctrl+Shift+Z` / `Ctrl+Y` redoes, and `Ctrl+Delete` clears (undoable). `?` / `F1` opens help generated from your actual config. `S` opens the stroke color palette; `G` opens the fill color picker. `Ctrl+Q` exits. See [all controls](docs/CONTROLS.md).
 
-`theme = "dark"` applies Excalidraw's dark-mode color transform, making default ink visible on dark desktops while retaining a transparent canvas. Set `theme = "light"` for light desktops. Shapes, text, and color swatches use the same transform; the setting does not paint a background.
+Open `F1` and adjust **Sloppiness** to change shape roughness from `0` (clean) to `3` (very rough). It updates new drawing defaults and selected shapes immediately. Use the mouse or arrow keys; `Escape` or `F1` closes the menu. The setting lasts for the session; edit `drawing.roughness` in your config to change the startup default.
+
+Use the **Dark mode** switch in `F1` to toggle light/dark drawing colors and menu panels immediately. To choose the startup theme, set the following in your config:
+
+```toml
+[drawing]
+theme = "dark" # or "light"
+```
+
+Dark mode applies Excalidraw's color transform to shapes, text, and swatches, making default ink visible on dark desktops. The canvas remains transparent in both modes. The F1 switch changes the current session; the config controls the next startup.
+
+## Screenshots
+
+Press **Ctrl+S** to save the desktop and annotations as a PNG in your XDG Pictures folder under `Screenshots` (usually `~/Pictures/Screenshots`). Filenames include a timestamp, such as `rsdraw-2026-10-31_22-30-00.png`; existing files are never overwritten. A message on the canvas shows the saved path or any capture error.
+
+The capture includes the monitor containing the overlay, with its current pan, zoom, and theme. If the compositor does not report an output name, all outputs are captured. Text being edited is committed first; help, color pickers, selection handles, and save notifications are hidden during capture. The screenshot uses `grim` and the compositor's screen-capture support, without blocking the interface. It saves an image, not an editable scene.
+
+The shortcut works while the F1 menu or text editor is open. Customize or disable it with `save_screenshot = "Ctrl+s"` or `save_screenshot = []` under `[keys]`.
 
 ## Local configuration
 
@@ -179,7 +196,7 @@ Colors are applied when paths or text are painted. Dark mode uses the reference'
 
 ### 8. Undo, configuration, and external commands
 
-Scene history stores snapshots of committed elements, with up to 100 undo entries. Completed drawing, moving, resizing, erasing, styling, and clearing operations are recorded as edits. An entire eraser drag is one undo step. Undo/redo restores element state, and making a new edit clears the redo stack. The scene and its history are discarded when the process exits.
+Scene history stores snapshots of committed elements, with up to 100 undo entries. Completed drawing, moving, resizing, erasing, styling, and clearing operations are recorded as edits. An entire eraser drag is one undo step. Undo/redo restores element state, and making a new edit clears the redo stack. The scene and its history are discarded when the process exits. Screenshots saved with `Ctrl+S` remain on disk.
 
 Configuration supplies startup defaults and keyboard bindings. Each element keeps its own style; changing drawing defaults does not restyle unselected existing elements. Style actions also apply to the current selection or text being edited. Bindings are validated for errors and conflicts, and the help view is generated from the loaded configuration.
 

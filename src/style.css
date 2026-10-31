@@ -18,3 +18,22 @@ window.rsdraw-overlay drawingarea.rsdraw-canvas {
 
 .panel button { background: #f5f5f5; border: 1px solid #dedede; border-radius: 4px; font-size: 26px; padding: 3px 8px; }
 .panel entry.error { outline: 1px solid #e03131; }
+
+/* The scene theme also controls the on-demand menus. */
+.panel entry { background: #ffffff; color: #1e1e1e; }
+.panel scale value, .panel scale marks { color: #5c5c68; }
+.panel scale trough { background: #e9e9ef; }
+.panel scale highlight { background: #6965db; }
+.panel switch:checked { background: #6965db; }
+.panel.error { color: #c92a2a; }
+window.rsdraw-overlay.dark .panel { background: #232329; color: #eeeeef; border-color: #44444f; }
+window.rsdraw-overlay.dark .caption { color: #b8b8c4; }
+window.rsdraw-overlay.dark .shortcut { color: #bab5f6; }
+window.rsdraw-overlay.dark .panel button { background: #34343e; border-color: #555560; color: #eeeeef; }
+window.rsdraw-overlay.dark .panel entry { background: #18181e; color: #eeeeef; border-color: #555560; }
+window.rsdraw-overlay.dark .panel scale value,
+window.rsdraw-overlay.dark .panel scale marks { color: #b8b8c4; }
+window.rsdraw-overlay.dark .panel scale trough { background: #44444f; }
+window.rsdraw-overlay.dark .panel scale highlight,
+window.rsdraw-overlay.dark .panel switch:checked { background: #8d87ed; }
+window.rsdraw-overlay.dark .panel.error { color: #ff8787; }

@@ -12,7 +12,7 @@ rsdraw is a Cargo workspace with two crates. Rendering is native Rust; no QuickJ
 - `crates/rsdraw-core/src/canvas.rs`: elements, Cairo replay, reference colors, hit testing, and cached geometry.
 - `crates/rsdraw-core/src/text.rs`: text normalization, fractional measurements, per-family line heights, and per-line alphabetic baselines.
 - `crates/rsdraw-core/src/fonts.rs`, `assets/fonts/`: process-local Fontconfig registration and bundled Excalifont.
-- `src/`: main `rsdraw` crate. GTK window/input (`app.rs`), scene edits/history (`model.rs`), keys, config, and IPC.
+- `src/`: main `rsdraw` crate. GTK window/input (`app.rs`), scene edits/history (`model.rs`), keys, config, IPC, and asynchronous desktop capture (`screenshot.rs`, using `grim`).
 - `examples/`: gallery and drawing benchmark importing `rsdraw_core`, without including private source files.
 - `tests/fixtures/`, `scripts/`: independent reference data and optional development-only JavaScript oracle generators.
 - `assets/vendor/`: upstream bundles used only by fixture generation, licenses, and provenance. None of the JavaScript is included in the application.
@@ -37,9 +37,11 @@ On a layer-shell compositor, run the native integration checks separately (GTK m
 ```bash
 taskset -c 0-4 cargo test -j 5 native_text_editor_and_empty_canvas -- --ignored --test-threads=1
 taskset -c 0-4 cargo test -j 5 themed_window_keeps_clear_pixels_transparent -- --ignored --test-threads=1
+# Requires grim; writes and removes a temporary screenshot.
+taskset -c 0-4 cargo test -j 5 desktop_screenshot_hides_controls_and_saves_annotations -- --ignored --test-threads=1
 ```
 
-These open temporary test windows. They cover editing, hidden controls, palettes, IPC validation, passthrough, and transparent pixels under an opaque GTK user theme. They do not change the running daemon.
+These open temporary test windows. They cover editing, hidden controls, palettes, IPC validation, passthrough, and transparent pixels under an opaque GTK user theme. They do not change the running daemon. The capture test verifies that the saved PNG contains an annotation at the screen center while the F1 panel is hidden; the panel is restored afterward.
 
 ## Reference and scope
 

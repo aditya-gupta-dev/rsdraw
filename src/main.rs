@@ -5,6 +5,7 @@ mod config;
 mod ipc;
 mod keys;
 mod model;
+mod screenshot;
 use rsdraw_core::{canvas, fonts};
 
 const VERSION: &str = "rsdraw 1.0.0";
